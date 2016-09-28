@@ -1,2 +1,2 @@
 # pythonServer
-python server for c++ rat to connect to
+Python server for c++ RAT to connect. Clearly a work in progress and not very effcient...
