@@ -1,11 +1,10 @@
 # Python Server
 Python server for c++ RAT to connect. Clearly a work in progress and not very effcient...
 
-Future:
-  - [ ] Fix bugs
-  - [ ] Select Different years
-  - [ ] Incorperate projects start dates
-  - [ ] Add employee button
-  - [ ] Add project button
-  - [ ] Show multiple projects on same calendar
-  - [ ] Redesign of GUI to have more traditional calendar look
+TODO:
+  - [ ] Comment/make code more readable - it is awful right now
+  - [ ] Fix client selector more space effcient
+  - [ ] Unique ID for each victim - easier to search and earsier to choose vitim to operate on
+  - [ ] Make sure each command shows in GUI
+  - [ ] GUI needs to be more verbose
+  - [ ] Shell interaction with victim
