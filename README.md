@@ -2,7 +2,7 @@
 Python server for c++ RAT to connect. Clearly a work in progress and not very effcient...
 
 TODO:
-  - [ ] Client and server into classes and create run.py
+  - [x] Client and server into classes and create run.py
   - [ ] Comment/make code more readable - it is awful right now
   - [ ] Fix client selector more space effcient
   - [ ] Unique ID for each victim - easier to search and earsier to choose vitim to operate on
