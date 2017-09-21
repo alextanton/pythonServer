@@ -1,6 +1,3 @@
-# Python Server
-Python server for c++ RAT to connect. Clearly a work in progress and not very effcient...
-
 TODO:
   - [x] Client and server into classes and create run.py
   - [x] Comment code
